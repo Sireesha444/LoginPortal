@@ -12,7 +12,7 @@ export default function Landing() {
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <GraduationCap className="text-primary text-2xl mr-2" />
-                <span className="text-xl font-bold text-foreground">EduConnect</span>
+                <span className="text-xl font-bold text-foreground">Oppliv</span>
               </div>
             </div>
             <div className="hidden md:block">
@@ -94,7 +94,7 @@ export default function Landing() {
           <div className="lg:text-center">
             <h2 className="text-base text-primary font-semibold tracking-wide uppercase">Features</h2>
             <p className="mt-2 text-3xl leading-8 font-bold tracking-tight text-gray-900 sm:text-4xl">
-              Why Choose EduConnect?
+              Why Choose Oppliv?
             </p>
           </div>
 

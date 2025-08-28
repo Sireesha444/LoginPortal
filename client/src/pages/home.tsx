@@ -28,7 +28,7 @@ export default function Home() {
             <div className="flex items-center">
               <div className="flex-shrink-0">
                 <GraduationCap className="text-primary text-2xl mr-2" />
-                <span className="text-xl font-bold text-foreground">EduConnect</span>
+                <span className="text-xl font-bold text-foreground">Oppliv</span>
               </div>
             </div>
             <div className="flex items-center space-x-4">

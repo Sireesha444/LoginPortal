@@ -1,8 +1,8 @@
-# EduConnect - Student-Company Matching Platform
+# Oppliv - Student-Company Matching Platform
 
 ## Overview
 
-EduConnect is a web application designed to connect students with companies, facilitating networking and career opportunities. The platform provides separate authentication systems for students and companies, with a modern React frontend and an Express.js backend. The application uses a full-stack TypeScript architecture with PostgreSQL as the primary database, implementing secure authentication through both custom login systems and Replit's OAuth integration.
+Oppliv is a web application designed to connect students with companies, facilitating networking and career opportunities. The platform provides separate authentication systems for students and companies, with a modern React frontend and an Express.js backend. The application uses a full-stack TypeScript architecture with PostgreSQL as the primary database, implementing secure authentication through both custom login systems and Replit's OAuth integration.
 
 ## User Preferences
 
