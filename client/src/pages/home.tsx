@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { GraduationCap, Building, LogOut } from "lucide-react";
+import logoUrl from "@assets/1_1756347794782.png";
 
 export default function Home() {
   const { user, isLoading } = useAuth();
@@ -26,8 +27,8 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <GraduationCap className="text-primary text-2xl mr-2" />
+              <div className="flex-shrink-0 flex items-center">
+                <img src={logoUrl} alt="Oppliv Logo" className="h-8 w-auto mr-2" />
                 <span className="text-xl font-bold text-foreground">Oppliv</span>
               </div>
             </div>
