@@ -11,7 +11,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { companyLoginSchema, type CompanyLoginData } from "@shared/schema";
+import { companyLoginSchema, type CompanyLoginData } from "@shared/models";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 export default function CompanyLogin() {

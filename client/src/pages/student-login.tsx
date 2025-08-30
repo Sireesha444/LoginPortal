@@ -12,7 +12,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useMutation } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { studentLoginSchema, type StudentLoginData } from "@shared/schema";
+import { studentLoginSchema, type StudentLoginData } from "@shared/models";
 
 export default function StudentLogin() {
   const [showPassword, setShowPassword] = useState(false);

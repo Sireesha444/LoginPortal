@@ -1,143 +1,247 @@
 import {
-  users,
-  companies,
-  students,
-  type User,
+  User,
+  Student,
+  Company,
+  type IUser,
+  type IStudent,
+  type ICompany,
   type UpsertUser,
-  type Company,
-  type Student,
   type InsertCompany,
   type InsertStudent,
   type StudentLoginData,
   type CompanyLoginData,
-} from "@shared/schema";
-import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+} from "@shared/models";
 import bcrypt from "bcrypt";
+import mongoose from "mongoose";
+import { isMongoConnected } from "./mongodb";
+import { inMemoryStorage } from "./inMemoryStorage";
 
 // Interface for storage operations
 export interface IStorage {
   // User operations (IMPORTANT) these are mandatory for Replit Auth
-  getUser(id: string): Promise<User | undefined>;
-  upsertUser(user: UpsertUser): Promise<User>;
+  getUser(id: string): Promise<IUser | undefined>;
+  upsertUser(user: UpsertUser): Promise<IUser>;
   
   // Student operations
-  createStudent(userId: string, studentData: InsertStudent): Promise<Student>;
-  getStudentByEmail(email: string): Promise<(Student & { user: User }) | undefined>;
-  authenticateStudent(loginData: StudentLoginData): Promise<(Student & { user: User }) | undefined>;
+  createStudent(userId: string, studentData: InsertStudent): Promise<IStudent>;
+  getStudentByEmail(email: string): Promise<(IStudent & { user: IUser }) | undefined>;
+  authenticateStudent(loginData: StudentLoginData): Promise<(IStudent & { user: IUser }) | undefined>;
   
   // Company operations
-  createCompany(userId: string, companyData: InsertCompany): Promise<Company>;
-  getCompanyByEmail(email: string): Promise<(Company & { user: User }) | undefined>;
-  authenticateCompany(loginData: CompanyLoginData): Promise<(Company & { user: User }) | undefined>;
+  createCompany(userId: string, companyData: InsertCompany): Promise<ICompany>;
+  getCompanyByEmail(email: string): Promise<(ICompany & { user: IUser }) | undefined>;
+  authenticateCompany(loginData: CompanyLoginData): Promise<(ICompany & { user: IUser }) | undefined>;
 }
 
-export class DatabaseStorage implements IStorage {
+export class HybridStorage implements IStorage {
+  // Automatically choose between MongoDB and in-memory storage
+  private getStorage() {
+    return isMongoConnected() ? new MongoStorage() : inMemoryStorage;
+  }
   // User operations (IMPORTANT) these are mandatory for Replit Auth
-  async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+  async getUser(id: string): Promise<IUser | undefined> {
+    const storage = this.getStorage();
+    if (storage === inMemoryStorage) {
+      return storage.getUser(id);
+    }
+    return (storage as MongoStorage).getUser(id);
   }
 
-  async upsertUser(userData: UpsertUser): Promise<User> {
-    const [user] = await db
-      .insert(users)
-      .values(userData)
-      .onConflictDoUpdate({
-        target: users.id,
-        set: {
+  async upsertUser(userData: UpsertUser): Promise<IUser> {
+    const storage = this.getStorage();
+    if (storage === inMemoryStorage) {
+      return storage.upsertUser(userData);
+    }
+    return (storage as MongoStorage).upsertUser(userData);
+  }
+
+  // Student operations
+  async createStudent(userId: string, studentData: InsertStudent): Promise<IStudent> {
+    const storage = this.getStorage();
+    if (storage === inMemoryStorage) {
+      return storage.createStudent(userId, studentData);
+    }
+    return (storage as MongoStorage).createStudent(userId, studentData);
+  }
+
+  async getStudentByEmail(email: string): Promise<(IStudent & { user: IUser }) | undefined> {
+    const storage = this.getStorage();
+    if (storage === inMemoryStorage) {
+      return storage.getStudentByEmail(email);
+    }
+    return (storage as MongoStorage).getStudentByEmail(email);
+  }
+
+  async authenticateStudent(loginData: StudentLoginData): Promise<(IStudent & { user: IUser }) | undefined> {
+    const storage = this.getStorage();
+    if (storage === inMemoryStorage) {
+      return storage.authenticateStudent(loginData);
+    }
+    return (storage as MongoStorage).authenticateStudent(loginData);
+  }
+
+  // Company operations
+  async createCompany(userId: string, companyData: InsertCompany): Promise<ICompany> {
+    const storage = this.getStorage();
+    if (storage === inMemoryStorage) {
+      return storage.createCompany(userId, companyData);
+    }
+    return (storage as MongoStorage).createCompany(userId, companyData);
+  }
+
+  async getCompanyByEmail(email: string): Promise<(ICompany & { user: IUser }) | undefined> {
+    const storage = this.getStorage();
+    if (storage === inMemoryStorage) {
+      return storage.getCompanyByEmail(email);
+    }
+    return (storage as MongoStorage).getCompanyByEmail(email);
+  }
+
+  async authenticateCompany(loginData: CompanyLoginData): Promise<(ICompany & { user: IUser }) | undefined> {
+    const storage = this.getStorage();
+    if (storage === inMemoryStorage) {
+      return storage.authenticateCompany(loginData);
+    }
+    return (storage as MongoStorage).authenticateCompany(loginData);
+  }
+}
+
+// Keep the original MongoStorage for when MongoDB is connected
+export class MongoStorage implements IStorage {
+  // User operations (IMPORTANT) these are mandatory for Replit Auth
+  async getUser(id: string): Promise<IUser | undefined> {
+    try {
+      const user = await User.findById(id);
+      return user || undefined;
+    } catch (error) {
+      console.error("Error getting user:", error);
+      return undefined;
+    }
+  }
+
+  async upsertUser(userData: UpsertUser): Promise<IUser> {
+    try {
+      const user = await User.findByIdAndUpdate(
+        userData._id,
+        {
           ...userData,
           updatedAt: new Date(),
         },
-      })
-      .returning();
-    return user;
+        { 
+          upsert: true, 
+          new: true, 
+          runValidators: true 
+        }
+      );
+      return user!;
+    } catch (error) {
+      console.error("Error upserting user:", error);
+      throw error;
+    }
   }
 
   // Student operations
-  async createStudent(userId: string, studentData: InsertStudent): Promise<Student> {
-    const hashedPassword = studentData.password 
-      ? await bcrypt.hash(studentData.password, 10)
-      : null;
+  async createStudent(userId: string, studentData: InsertStudent): Promise<IStudent> {
+    try {
+      const hashedPassword = studentData.password 
+        ? await bcrypt.hash(studentData.password, 10)
+        : undefined;
 
-    const [student] = await db
-      .insert(students)
-      .values({
+      const student = new Student({
         ...studentData,
-        userId,
+        userId: new mongoose.Types.ObjectId(userId),
         password: hashedPassword,
-      })
-      .returning();
-    return student;
+      });
+
+      await student.save();
+      return student;
+    } catch (error) {
+      console.error("Error creating student:", error);
+      throw error;
+    }
   }
 
-  async getStudentByEmail(email: string): Promise<(Student & { user: User }) | undefined> {
-    const result = await db
-      .select()
-      .from(students)
-      .innerJoin(users, eq(students.userId, users.id))
-      .where(eq(students.studentEmail, email));
+  async getStudentByEmail(email: string): Promise<(IStudent & { user: IUser }) | undefined> {
+    try {
+      const student = await Student.findOne({ studentEmail: email }).populate('userId');
+      if (!student) return undefined;
 
-    if (result.length === 0) return undefined;
-
-    return {
-      ...result[0].students,
-      user: result[0].users,
-    };
+      return {
+        ...student.toObject(),
+        user: student.userId as IUser,
+      };
+    } catch (error) {
+      console.error("Error getting student by email:", error);
+      return undefined;
+    }
   }
 
-  async authenticateStudent(loginData: StudentLoginData): Promise<(Student & { user: User }) | undefined> {
-    const student = await this.getStudentByEmail(loginData.email);
-    if (!student || !student.password) return undefined;
+  async authenticateStudent(loginData: StudentLoginData): Promise<(IStudent & { user: IUser }) | undefined> {
+    try {
+      const student = await this.getStudentByEmail(loginData.email);
+      if (!student || !student.password) return undefined;
 
-    const isValidPassword = await bcrypt.compare(loginData.password, student.password);
-    if (!isValidPassword) return undefined;
+      const isValidPassword = await bcrypt.compare(loginData.password, student.password);
+      if (!isValidPassword) return undefined;
 
-    return student;
+      return student;
+    } catch (error) {
+      console.error("Error authenticating student:", error);
+      return undefined;
+    }
   }
 
   // Company operations
-  async createCompany(userId: string, companyData: InsertCompany): Promise<Company> {
-    const hashedPassword = await bcrypt.hash(companyData.password, 10);
+  async createCompany(userId: string, companyData: InsertCompany): Promise<ICompany> {
+    try {
+      const hashedPassword = await bcrypt.hash(companyData.password, 10);
 
-    const [company] = await db
-      .insert(companies)
-      .values({
+      const company = new Company({
         ...companyData,
-        userId,
+        userId: new mongoose.Types.ObjectId(userId),
         password: hashedPassword,
-      })
-      .returning();
-    return company;
+      });
+
+      await company.save();
+      return company;
+    } catch (error) {
+      console.error("Error creating company:", error);
+      throw error;
+    }
   }
 
-  async getCompanyByEmail(email: string): Promise<(Company & { user: User }) | undefined> {
-    const result = await db
-      .select()
-      .from(companies)
-      .innerJoin(users, eq(companies.userId, users.id))
-      .where(eq(companies.companyEmail, email));
+  async getCompanyByEmail(email: string): Promise<(ICompany & { user: IUser }) | undefined> {
+    try {
+      const company = await Company.findOne({ companyEmail: email }).populate('userId');
+      if (!company) return undefined;
 
-    if (result.length === 0) return undefined;
-
-    return {
-      ...result[0].companies,
-      user: result[0].users,
-    };
+      return {
+        ...company.toObject(),
+        user: company.userId as IUser,
+      };
+    } catch (error) {
+      console.error("Error getting company by email:", error);
+      return undefined;
+    }
   }
 
-  async authenticateCompany(loginData: CompanyLoginData): Promise<(Company & { user: User }) | undefined> {
-    const company = await this.getCompanyByEmail(loginData.email);
-    if (!company) return undefined;
+  async authenticateCompany(loginData: CompanyLoginData): Promise<(ICompany & { user: IUser }) | undefined> {
+    try {
+      const company = await this.getCompanyByEmail(loginData.email);
+      if (!company) return undefined;
 
-    const isValidPassword = await bcrypt.compare(loginData.password, company.password);
-    if (!isValidPassword) return undefined;
+      const isValidPassword = await bcrypt.compare(loginData.password, company.password);
+      if (!isValidPassword) return undefined;
 
-    // Verify company code
-    if (company.companyCode !== loginData.companyCode) return undefined;
+      // Verify company code
+      if (company.companyCode !== loginData.companyCode) return undefined;
 
-    return company;
+      return company;
+    } catch (error) {
+      console.error("Error authenticating company:", error);
+      return undefined;
+    }
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new HybridStorage();

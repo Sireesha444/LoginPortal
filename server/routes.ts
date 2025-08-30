@@ -2,15 +2,19 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
+import { connectToMongoDB } from "./mongodb";
 import { 
   studentLoginSchema, 
   companyLoginSchema,
   type StudentLoginData,
   type CompanyLoginData 
-} from "@shared/schema";
+} from "@shared/models";
 import { z } from "zod";
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  // Connect to MongoDB
+  await connectToMongoDB();
+  
   // Auth middleware
   await setupAuth(app);
 
